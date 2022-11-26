@@ -63,7 +63,7 @@ def main():
         # Create a  generator for all the points in the ResultSet that match the given filters (none)
         QueryGenerator = QueryResultSet.get_points()
         # Packet to add if we get a missing packet
-        blankPacket = '0' * 200
+        blankPacket = 'A' * 200
 
     # Initialise variables
     imageName = False
