@@ -114,8 +114,6 @@ def main():
         packetNum = int(packet['status'][1:4])
 
         # Have we found the first packet of an image?
-        #TODO If missing up to first 4 packets we can recover image? ie 2022-11-26T03:41:47.036244Z c001 or 
-        # 2022-11-25T23:20:59.370286Z c001 or 2022-11-25T17:10:11.216029Z c001 or 2022-11-25T16:14:03.937421Z c001
         if packetNum == 0:
 
             # Are we already rx'ing an image?  If so we must have missed the end, 
@@ -133,6 +131,17 @@ def main():
             # packet['time'] format = 2022-11-26T15:18:59.959801Z
             imageName = packet['time'][0:16] + packet['time'][-1]
             if args.debug: print(f'Image {imageName} start found.')
+
+
+        # Worth recovering up to 5 missing start packets as these are standard headers
+        #TODO save last image if end packet and start packets missing
+        if packetNum > 0 and packetNum < 5 and imageName == "False":
+
+            # packet['time'] format = 2022-11-26T15:18:59.959801Z
+            imageName = packet['time'][0:16] + packet['time'][-1]
+            if args.debug: print(f'Image {imageName} late start found.')
+
+
 
         # If we are inside an image then add the packet to the imageData, excluding the packet header (eg c000)
         if imageName != "False":
