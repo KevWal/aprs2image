@@ -5,7 +5,7 @@ import base64
 from influxdb import InfluxDBClient
 
 # Command line input
-parser = argparse.ArgumentParser(description='Connects to InfluxDB and saves out images')
+parser = argparse.ArgumentParser(description='Connects to InfluxDB and saves out image')
 parser.add_argument('--dbhost', help='Set InfluxDB host', default="localhost")
 parser.add_argument('--dbport', help='Set InfluxDB port', default="8086")
 parser.add_argument('--dbuser', help='Set InfluxDB user', default="admin")
@@ -22,17 +22,17 @@ parser.add_argument('--test', help='Test mode, using test data', action='store_t
 args = parser.parse_args()
 
 # Functions
-def processImage(imageName, image):
-    """Process Base64 data into an image
+def processImage(imageName, imageData):
+    """Process Base64 data into an imageData
 
     imageName = name of image excluding extension
-    image = Base64 encoded image data
+    imageData = Base64 encoded image data
     """
 
     imageName = './output_files/' + imageName + '.jpg'
     with open(imageName, "wb") as imageFile:
         print(f'Saving image data to {imageName}.')
-        imageFile.write(base64.b64decode(image.encode()))
+        imageFile.write(base64.b64decode(imageData.encode()))
 
 
 def main():
@@ -47,7 +47,7 @@ def main():
 
     # QueryResultSet is an object of type https://influxdb-python.readthedocs.io/en/latest/api-documentation.html#resultset
     QueryResultSet = InfluxDB.query('SELECT status FROM packet WHERE \"from\" = \'{call}\' and time >= now() - {since} order by time asc'
-        .format(call = args.callsign, since = args.since), epoch='s')
+        .format(call = args.callsign, since = args.since), epoch='m')
 
     #print(QueryResultSet)
 
@@ -67,11 +67,11 @@ def main():
 
     # Initialise variables
     imageName = False
-    lastPacket = -1
-    image = ''
+    lastPacketNum = -1
+    imageData = ''
     process = False
 
-    # Loop around all packets found and generate images
+    # Loop around all packets found and generate imageDatas
     for packet in QueryGenerator:
         #print(packet)
         #print(packet['status'])
@@ -81,51 +81,52 @@ def main():
 
         packetNum = int(packet['status'][1:4])
 
-        # Have we found the first packet of an image?
+        # Have we found the first packet of an imageData?
         if packetNum == 0:
             imageName = packet['time']
             if args.debug: print(f'Image {imageName} start found.')
 
-        # If we are inside an image then add the packet to the image, excluding the packet header (eg c000)
+        # If we are inside an image then add the packet to the imageData, excluding the packet header (eg c000)
         if imageName > 0:
 
             # duplicate packet?
-            if packetNum == lastPacket:
-                print(f'Image {imageName} expected packet {lastPacket + 1} got duplicate of packet {lastPacket}.')
+            if packetNum == lastPacketNum:
+                print(f'Image {imageName} expected packet {lastPacketNum + 1} got duplicate of packet {lastPacketNum}.')
+                # Exit this iteration of the for loop to throw away this duplicate packet but then continue processing packets
                 continue
 
             # missing packet(s)?
-            if packetNum > (lastPacket + 1):
-                missingPackets = packetNum - (lastPacket + 1)
-                print(f'Image {imageName} expected packet {lastPacket + 1} got packet {packetNum}, adding {missingPackets} blank packets.')
+            if packetNum > (lastPacketNum + 1):
+                missingPackets = packetNum - (lastPacketNum + 1)
+                print(f'Image {imageName} expected packet {lastPacketNum + 1} got packet {packetNum}, adding {missingPackets} blank packets.')
   
                 for _ in range(missingPackets): 
-                    image += blankPacket
+                    imageData += blankPacket
 
-            # missed the image end packet?
-            if packetNum < lastPacket:
-                print(f'Image {imageName} missed last packet, processing it now anyway.')
-                # dont add this packet to this image
-                # TODO add it to the next image
+            # missed the imageData end packet? (ie packetNum went backwards)
+            if packetNum < lastPacketNum:
+                print(f'Image {imageName} missed last packet, processing image now anyway.')
+                # dont add this packet to this imageData
+                # TODO add it to the next imageData
                 process = True
             else:
-                # Safe to add packet to image if we got here
-                image += packet['status'][4:]
+                # Safe to add packet to imageData if we got here
+                imageData += packet['status'][4:]
 
-            # Update lastPacket number
-            lastPacket = packetNum
+            # Update lastPacketNum number
+            lastPacketNum = packetNum
 
-            # If we have reached the end of an image then process it and prepare to find the next image
+            # If we have reached the end of an imageData then process it and prepare to find the next imageData
             if packet['status'][0] == 'e' or process == True:
                 if args.debug: print(f'Image {imageName} Processing, {packetNum} packets.')
-                if args.test: print(image)
+                if args.test: print(imageData)
 
-                processImage(str(imageName), image)
+                processImage(str(imageName), imageData)
 
-                # Reset ready for next image
+                # Reset ready for next imageData
                 imageName = False
-                lastPacket = -1
-                image = ''
+                lastPacketNum = -1
+                imageData = ''
                 process = False
 
         else:
