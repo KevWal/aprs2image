@@ -16,6 +16,7 @@ parser.add_argument('--callsign', help='Set APRS callsign (inc ssid) for image p
 parser.add_argument('--since', help='How far back to process, eg 1h, 1d, 1w', default="1d")
 
 parser.add_argument('--debug', help='Debug mode, print Debug level info', action='store_true')
+parser.add_argument('--verbose', help='Print out every packet', action='store_true')
 parser.add_argument('--test', help='Test mode, using test data', action='store_true')
 parser.add_argument('--base64', help='Also write out base64 data', action='store_true')
 
@@ -31,19 +32,25 @@ def processImage(imageName, imageData, packetNum):
     """
 
     # packetNum starts at 0, so number of packets to process is packetNum + 1
-    if args.debug: print(f'Image {imageName} Processing, {packetNum + 1} packets.')
-    if args.test: print(imageData)
+    print(f'Image {imageName} Processing, {packetNum + 1} packets.')
 
     imageName = './output_files/' + imageName + '.jpg'
-    with open(imageName, "wb") as imageFile:
-        print(f'Saving image data to {imageName}.')
-        imageFile.write(base64.b64decode(imageData.encode()))
+
+    # My test data is not BASE64 encoded
+    if args.test:
+        print(imageData)
+    else:
+        with open(imageName, "wb") as imageFile:
+            print(f'Saving image data to {imageName}.')
+            imageFile.write(base64.b64decode(imageData.encode()))
 
     if args.base64:
         imageName = imageName[0:-3] + 'base64'
         with open(imageName, "wb") as imageFile:
             print(f'Saving base64 image data to {imageName}.')
             imageFile.write(imageData.encode())
+
+    print()
 
 
 def main():
@@ -64,17 +71,29 @@ def main():
 
     if args.test:
         # Simple test data with 2 missing packets and 1 duplicate packet
-        QueryGenerator = [{'time': 111, 'status': 'c0272727'}, {'time': 212, 'status': 'e0282828'}, 
-            {'time': 313, 'status': 'c0000000'}, {'time': 414, 'status': 'c0011111'}, {'time': 424, 'status': 'c0011111'}, 
-            {'time': 515, 'status': 'c0022222'}, {'time': 717, 'status': 'c0055555'},
-            {'time': 818, 'status': 'e0066666'}, {'time': 919, 'status': 'c0000000'}]
-	# Packet to add if we get a missing packet
+        QueryGenerator = [{'time': '111', 'status': 'c0272727'}, {'time': '212', 'status': 'e0282828'}, 
+            {'time': '313', 'status': 'c0000000'}, {'time': '414', 'status': 'c0011111'}, {'time': '424', 'status': 'c0011111'}, 
+            {'time': '515', 'status': 'c0022222'}, {'time': '717', 'status': 'c0055555'},
+            {'time': '818', 'status': 'e0066666'}, {'time': '919', 'status': 'c0000000'}]
+	# Packets to add if we get a missing packet
         blankPacket = '0' * 4
+        PacketZero = '0000'
+        PacketOne = '1111'
+        PacketTwo = '2222'
+        PacketThree = '3333'
+        PacketFour = '4444'
     else:
         # Create a  generator for all the points in the ResultSet that match the given filters (none)
         QueryGenerator = QueryResultSet.get_points()
-        # Packet to add if we get a missing packet, A is Base64 for 0
+        # Packets to add if we get a missing packet, A is Base64 for 0
         blankPacket = 'A' * 200
+        PacketZero = '/9j/4AAQSkZJRgABAQEAAAAAAAD/2wBDAAwICQsJCAwLCgsODQwOEh4UEhEREiUaHBYeLCYuLSsmKikwNkU7MDNBNCkqPFI9QUdKTU5NLzpVW1RLWkVMTUr/2wBDAQ0ODhIQEiMUFCNKMioySkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpK'
+        PacketOne = 'SkpKSkpKSkr/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5'
+        PacketTwo = 'eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgU'
+        PacketThree = 'QpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/wAARCAFAAeAD'
+        # Only the first 31 Base64 character of Packet 4 are part of the header, used black image for the rest
+        PacketFour = 'ASEAAhEBAxEB/9oADAMBAAIRAxEAPwDzs7M7vm96eWPUOMdhurl+IrQiYf3s0KdrcMRT8h6i4wRj+dDEkdc/U0xIQk48vNDfKAcqfpVIT8hflzxjFIMfn2zU3Y3cd0B+Y/TNJweOKfS47BwPf6Gk7D/CkT6gduRyCBSDGeOaQhQ2OO3pScc4xQCF7Yzmm9OavyGKDxxS'
+
 
     # Initialise variables
     imageName = "False"
@@ -84,7 +103,7 @@ def main():
 
     # Loop around all packets found and generate images
     for packet in QueryGenerator:
-        #print(packet)
+        if args.verbose: print("Packet: " + packet['time'] + " " + packet['status'][0:15])
         #print(packet['status'])
         #print(packet['time'])
         #print(packet['status'][1:4])
@@ -95,11 +114,14 @@ def main():
         packetNum = int(packet['status'][1:4])
 
         # Have we found the first packet of an image?
+        #TODO If missing up to first 4 packets we can recover image? ie 2022-11-26T03:41:47.036244Z c001 or 
+        # 2022-11-25T23:20:59.370286Z c001 or 2022-11-25T17:10:11.216029Z c001 or 2022-11-25T16:14:03.937421Z c001
         if packetNum == 0:
 
             # Are we already rx'ing an image?  If so we must have missed the end, 
             # so process that image and reset ready for this next image
             if imageName != "False":
+                print('Missing end packet of last image so processing last image now.')
                 processImage(str(imageName), imageData, lastPacketNum)
 
                 # Reset ready for next image
@@ -124,10 +146,38 @@ def main():
             # missing packet(s)?
             if packetNum > (lastPacketNum + 1):
                 missingPackets = packetNum - (lastPacketNum + 1)
-                print(f'Image {imageName} expected packet {lastPacketNum + 1} got packet {packetNum}, adding {missingPackets} blank packets.')
-  
-                for _ in range(missingPackets): 
-                    imageData += blankPacket
+
+                # If missing packet 0 - 4, then replace with known good data, otherwise we can only replace with blankPackets and hope 
+                if lastPacketNum + 1 == 0 and missingPackets > 0:
+                    print(f'Image {imageName} expected packet {lastPacketNum + 1} got packet {packetNum}, adding saved PacketZero.')
+                    imageData += PacketZero
+                    lastPacketNum += 1
+                    missingPackets -= 1
+                if lastPacketNum + 1 == 1 and missingPackets > 0:
+                    print(f'Image {imageName} expected packet {lastPacketNum + 1} got packet {packetNum}, adding saved PacketOne.')
+                    imageData += PacketOne
+                    lastPacketNum += 1
+                    missingPackets -= 1
+                if lastPacketNum + 1 == 2 and missingPackets > 0:
+                    print(f'Image {imageName} expected packet {lastPacketNum + 1} got packet {packetNum}, adding saved PacketTwo.')
+                    imageData += PacketTwo
+                    lastPacketNum += 1
+                    missingPackets -= 1
+                if lastPacketNum + 1 == 3 and missingPackets > 0:
+                    print(f'Image {imageName} expected packet {lastPacketNum + 1} got packet {packetNum}, adding saved PacketThree.')
+                    imageData += PacketThree
+                    lastPacketNum += 1
+                    missingPackets -= 1
+                if lastPacketNum + 1 == 4 and missingPackets > 0:
+                    print(f'Image {imageName} expected packet {lastPacketNum + 1} got packet {packetNum}, adding saved PacketFour.')
+                    imageData += PacketFour
+                    lastPacketNum += 1
+                    missingPackets -= 1
+
+                if missingPackets != 0:
+                    print(f'Image {imageName} expected packet {lastPacketNum + 1} got packet {packetNum}, adding {missingPackets} blank packets.')
+                    for _ in range(missingPackets): 
+                        imageData += blankPacket
 
             # missed the image end packet? (ie packetNum went backwards)
             # this only happens if we have a missing end packet, and a missing image start packet
