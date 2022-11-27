@@ -77,7 +77,7 @@ def main():
 
     # Loop around all packets found and generate images
     for packet in QueryGenerator:
-        print(packet)
+        #print(packet)
         #print(packet['status'])
         #print(packet['time'])
         #print(packet['status'][1:4])
