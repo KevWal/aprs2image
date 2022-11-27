@@ -17,6 +17,7 @@ parser.add_argument('--since', help='How far back to process, eg 1h, 1d, 1w', de
 
 parser.add_argument('--debug', help='Debug mode, print Debug level info', action='store_true')
 parser.add_argument('--test', help='Test mode, using test data', action='store_true')
+parser.add_argument('--base64', help='Also write out base64 data', action='store_true')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -37,6 +38,12 @@ def processImage(imageName, imageData, packetNum):
     with open(imageName, "wb") as imageFile:
         print(f'Saving image data to {imageName}.')
         imageFile.write(base64.b64decode(imageData.encode()))
+
+    if args.base64:
+        imageName = imageName[0:-3] + 'base64'
+        with open(imageName, "wb") as imageFile:
+            print(f'Saving base64 image data to {imageName}.')
+            imageFile.write(imageData.encode())
 
 
 def main():
@@ -66,7 +73,7 @@ def main():
     else:
         # Create a  generator for all the points in the ResultSet that match the given filters (none)
         QueryGenerator = QueryResultSet.get_points()
-        # Packet to add if we get a missing packet
+        # Packet to add if we get a missing packet, A is Base64 for 0
         blankPacket = 'A' * 200
 
     # Initialise variables
