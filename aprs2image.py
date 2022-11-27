@@ -22,12 +22,16 @@ parser.add_argument('--test', help='Test mode, using test data', action='store_t
 args = parser.parse_args()
 
 # Functions
-def processImage(imageName, imageData):
+def processImage(imageName, imageData, packetNum):
     """Process Base64 data into an image
 
     imageName = name of image excluding extension
     imageData = Base64 encoded image data
     """
+
+    # packetNum starts at 0, so number of packets to process is packetNum + 1
+    if args.debug: print(f'Image {imageName} Processing, {packetNum + 1} packets.')
+    if args.test: print(imageData)
 
     imageName = './output_files/' + imageName + '.jpg'
     with open(imageName, "wb") as imageFile:
@@ -73,7 +77,7 @@ def main():
 
     # Loop around all packets found and generate images
     for packet in QueryGenerator:
-        #print(packet)
+        print(packet)
         #print(packet['status'])
         #print(packet['time'])
         #print(packet['status'][1:4])
@@ -85,6 +89,18 @@ def main():
 
         # Have we found the first packet of an image?
         if packetNum == 0:
+
+            # Are we already rx'ing an image?  If so we must have missed the end, 
+            # so process that image and reset ready for this next image
+            if imageName != "False":
+                processImage(str(imageName), imageData, lastPacketNum)
+
+                # Reset ready for next image
+                imageName = "False"
+                lastPacketNum = -1
+                imageData = ''
+                process = False
+
             # packet['time'] format = 2022-11-26T15:18:59.959801Z
             imageName = packet['time'][0:16] + packet['time'][-1]
             if args.debug: print(f'Image {imageName} start found.')
@@ -107,10 +123,10 @@ def main():
                     imageData += blankPacket
 
             # missed the image end packet? (ie packetNum went backwards)
+            # this only happens if we have a missing end packet, and a missing image start packet
             if packetNum < lastPacketNum:
                 print(f'Image {imageName} missed last packet, processing image now anyway.')
                 # Don't add this packet to this image
-                # TODO add it to the next image
                 process = True
             else:
                 # Safe to add packet to imageData if we got here
@@ -121,10 +137,7 @@ def main():
 
             # If we have reached the end of an image then process it and prepare to find the next image
             if packet['status'][0] == 'e' or process == True:
-                if args.debug: print(f'Image {imageName} Processing, {packetNum} packets.')
-                if args.test: print(imageData)
-
-                processImage(str(imageName), imageData)
+                processImage(str(imageName), imageData, packetNum)
 
                 # Reset ready for next image
                 imageName = "False"
