@@ -79,6 +79,8 @@ def main():
         #print(packet['status'][1:4])
         #print(packet['status'][0:4])
 
+        # packet['status'] format = cXXXABC... or eXXXABC... where XXX is packet number starting at 000 
+        # and e signifies the last packet of an image
         packetNum = int(packet['status'][1:4])
 
         # Have we found the first packet of an image?
@@ -107,7 +109,7 @@ def main():
             # missed the image end packet? (ie packetNum went backwards)
             if packetNum < lastPacketNum:
                 print(f'Image {imageName} missed last packet, processing image now anyway.')
-                # dont add this packet to this image
+                # Don't add this packet to this image
                 # TODO add it to the next image
                 process = True
             else:
