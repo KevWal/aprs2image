@@ -129,7 +129,7 @@ def main():
                 process = False
 
             # packet['time'] format = 2022-11-26T15:18:59.959801Z
-            imageName = packet['time'][0:16] + packet['time'][-1]
+            imageName = packet['time'][0:16].replace(":","-") + packet['time'][-1]
             if args.debug: print(f'Image {imageName} start found.')
 
 
